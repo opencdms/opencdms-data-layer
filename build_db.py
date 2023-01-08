@@ -12,8 +12,5 @@ engine = create_engine(f"postgresql+psycopg2://{UID}:{PWD}@opencdms-database:543
 Base.metadata.bind = engine
 
 schemas = {v.schema for k, v in Base.metadata.tables.items()}
-# for _schema in schemas:
-#     # if not engine.dialect.has_schema(engine, _schema):
-#     engine.execute(schema.CreateSchema(_schema))
 
 Base.metadata.create_all(engine)
