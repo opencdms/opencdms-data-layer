@@ -1,5 +1,3 @@
-import uuid
-import random
 import os
 import pytest
 from sqlalchemy import create_engine, schema
