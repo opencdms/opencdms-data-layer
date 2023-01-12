@@ -10,10 +10,11 @@ from sqlalchemy import (
     Integer,
     MetaData,
     Numeric,
-    String
+    String,
+    Table
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -123,6 +124,7 @@ class Observations(Base):
     comments = Column(  String, comment="Free text comments on this record, for example description of changes made etc")
 
 
+
 class Collections(Base):
     __tablename__ = "collections"
     __table_args__ = {'schema': 'cdm'}
@@ -141,3 +143,28 @@ class Features(Base):
 
 
 
+users_stations_link = Table(
+    'users_stations_link', Base.metadata,
+    Column("user_id",ForeignKey("cdm.users.id"), comment="User "),
+    Column("station_id",ForeignKey("cdm.stations.id"), comment="Station where user read and write observations"),
+    schema="cdm")
+
+# class UsersStationsLink(Base):
+#     __tablename__ = "users_stations_link"
+#     __table_args__ = {"schema": "cdm"}
+#     id = Column(  String, comment="ID / primary key", primary_key=True)
+#     user_id = Column(ForeignKey("cdm.users.id"), comment="User ")
+#     station_id = Column(ForeignKey("cdm.stations.id"), comment="Station where user read and write observations")
+
+class Users(Base):
+    __tablename__ = "users"
+    __table_args__ = {'schema': 'cdm'}
+    id = Column(  String, comment="ID / primary key", primary_key=True)
+    username = Column(String, comment="User name")
+
+    stations = relationship("Stations", secondary=users_stations_link)
+
+    @property
+    def station_ids(self):
+        return { station.id for station in self.stations }
+    
