@@ -161,8 +161,8 @@ class Users(Base):
     __table_args__ = {'schema': 'cdm'}
     id = Column(  String, comment="ID / primary key", primary_key=True)
     username = Column(String, comment="User name")
-
-    stations = relationship("Stations", secondary=users_stations_link)
+    # Must be eager loaded to avoid sqlalchemy.orm.exc.DetachedInstanceError
+    stations = relationship("Stations", lazy="joined", secondary=users_stations_link)
 
     @property
     def station_ids(self):
