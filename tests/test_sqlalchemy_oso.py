@@ -37,10 +37,10 @@ def authorized_session(request):
                                                 get_oso=lambda: oso,
                                                 get_user=lambda: get_authenticated_user(user_id),
                                                 get_checked_permissions=lambda: { Observations: action })
-    session = AuthorizedSession()
+    auth_session = AuthorizedSession()
     
-    yield session
-    session.close()
+    yield auth_session
+    auth_session.close()
 
 
 def setup_module(module):
@@ -92,14 +92,14 @@ def setup_module(module):
 
 def teardown_module(module):
     # Postgresql does not automatically reset ID if a table is truncated like mysql does
+    # Closing all active sessions on the DB
+    close_all_sessions()
     with db_engine.connect() as connection:
         with connection.begin():
-            db_engine.execute(sa_text(f'''TRUNCATE TABLE cdm.{Stations.__tablename__} RESTART IDENTITY CASCADE''').execution_options(autocommit=True))
             db_engine.execute(sa_text(f'''TRUNCATE TABLE cdm.{Observations.__tablename__} RESTART IDENTITY CASCADE''').execution_options(autocommit=True))
+            db_engine.execute(sa_text(f'''TRUNCATE TABLE cdm.{Stations.__tablename__} RESTART IDENTITY CASCADE''').execution_options(autocommit=True))
             db_engine.execute(sa_text(f'''TRUNCATE TABLE cdm.{Users.__tablename__} RESTART IDENTITY CASCADE''').execution_options(autocommit=True))
-    # Base.metadata.drop_all()
-    # close_all_sessions()
-    # db_engine.dispose()
+    db_engine.dispose()
 
 
 @pytest.mark.parametrize("authorized_session", [("read", "1")],indirect=True)
@@ -111,7 +111,38 @@ def test_that_user_1_can_see_only_observations_in_station_1(authorized_session):
     
 
 @pytest.mark.parametrize("authorized_session", [("read", "2")], indirect=True)
-def test_that_user_2_can_see_only_observations_in_station_1_and_station_2(authorized_session):
+def test_that_user_2_can_see_observations_in_station_1_and_station_2(authorized_session):
     observations = authorized_session.query(Observations).all()
     assert len(observations) == 4
+
+
+@pytest.mark.parametrize("authorized_session",[("write","1")], indirect=True)
+def test_user_1_can_edit_observations_from_station_1(authorized_session):
+    observations = authorized_session.query(Observations).all()
+    assert len(observations) == 2
+    for observation in observations:
+        observation.comments = "User 1 Changed this comment"
+        authorized_session.add(observation)
+        authorized_session.commit()
+    
+    observations = authorized_session.query(Observations).all()
+    assert len(observations) == 2
+    for observation in observations:
+        assert "User 1 Changed this comment" in  observation.comments
+
+
+@pytest.mark.parametrize("authorized_session",[("write","2")], indirect=True)
+def test_user_2_can_edit_observations_from_station_1_and_station_2(authorized_session):
+    observations = authorized_session.query(Observations).all()
+    assert len(observations) == 4
+    for observation in observations:
+        observation.comments = "User 2 Changed this comment"
+        authorized_session.add(observation)
+        authorized_session.commit()
+    
+    observations = authorized_session.query(Observations).all()
+    for observation in observations:
+        assert "User 2 Changed this comment" in  observation.comments
+    
+
     
